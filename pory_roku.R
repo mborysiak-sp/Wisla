@@ -15,19 +15,19 @@ points(city[c('lon', 'lat')], pch=19, col=2);
 dev.off()
 
 path_to_files <- "temp.stations-all"
-lato <- as.list(list.files(path=path_to_files, pattern = ".*[6-8].csv"))
+lato <- as.list(list.files(path=path_to_files, pattern = ".*[6, 7, 8].csv"))
 lato <- paste0(path_to_files, "//", lato)
 data_lato <- lapply(lato, read.csv)
 
-jesien <- as.list(list.files(path=path_to_files, pattern = ".*[9-11].csv"))
+jesien <- as.list(list.files(path=path_to_files, pattern = ".*[9, 10, 11].csv"))
 jesien <- paste0(path_to_files, "//", jesien)
 data_jesien <- lapply(jesien, read.csv)
 
-zima <- as.list(list.files(path=path_to_files, pattern = ".*[12-2].csv"))
+zima <- as.list(list.files(path=path_to_files, pattern = ".*[12, 1, 2].csv"))
 zima <- paste0(path_to_files, "//", zima)
 data_zima <- lapply(zima, read.csv)
 
-wiosna <- as.list(list.files(path=path_to_files, pattern = ".*[3-5].csv"))
+wiosna <- as.list(list.files(path=path_to_files, pattern = ".*[3, 4, 5].csv"))
 wiosna <- paste0(path_to_files, "//", wiosna)
 data_wiosna <- lapply(wiosna, read.csv)
 
@@ -39,7 +39,7 @@ datetime_lato <- c()
 
 for(i in 1:n_lato) {
   max10_lato <- c(max10_lato, data_lato[[i]]$X249180230)
-  datetime_lato <- c(datetime_lato, as.character(data_lato[[i]]$datetime_lato))
+  datetime_lato <- c(datetime_lato, as.character(data_lato[[i]]$datetime))
 }
 
 x_lato <- c()
@@ -48,17 +48,12 @@ for(i_lato in 1:n_lato) {
   x_lato[i] <- "X249180230" %in% sti_lato
 }
 
-
 max10_lato <- data.frame(date = as.Date(datetime_lato), max10_lato=max10_lato)
-
 max10_lato <- separate(max10_lato, date, c("year", "mth", "day"), convert=TRUE)
-
-max10_lato <- data.frame(datetime_lato=datetime_lato, max10_lato)
+max10_lato <- data.frame(datetime=datetime_lato, max10_lato)
 
 fit_lato <- fitDist(max10_lato$max10_lato, type="realline")
-
 save(max10_lato, fit_lato, file="Wisla_lato.Rdata")
-
 
 mu_lato <- fit_lato$mu
 sigma_lato <- fit_lato$sigma
@@ -67,19 +62,23 @@ tau_lato <- fit_lato$tau
 
 print("X20 lato GAMLSS")
 x20_lato <- 1-(1/(20*92*24*6))
-result20_lato <- qSEP1(x20,mu_lato,sigma_lato,nu_lato,tau_lato); result20_lato
+result20_lato <- qSEP1(x20_lato,mu_lato,sigma_lato,nu_lato,tau_lato); result20_lato
 print("X50 lato GAMLSS")
 x50_lato <- 1-(1/(50*92*24*6))
-result50_lato <- qSEP1(x50,mu_lato,sigma_lato,nu_lato,tau_lato); result50_lato
+result50_lato <- qSEP1(x50_lato,mu_lato,sigma_lato,nu_lato,tau_lato); result50_lato
 
 ### 2 sposob
 #-=-=-=-=-=-=-=-=- metoda 2. Rozkład GEV -=-=-=-=-=-=-=-=-=-=-=
 
+data_lato <- max10_lato
+
+data_lato <- max10_lato[,5]
+max10_lato <- max10_lato[!is.na(max10_lato)]
+
 b_lato <- 6*24*92
-fit_lato1 <- evir::gev(data_lato,b_lato)  
+fit_lato1 <- evir::gev(data_lato, b_lato)  
 
 Max_lato <- fit_lato1$data_lato
-
 fit_lato2 <- ismev::gev.fit_lato(Max_lato)
 
 print("X20 lato GEV")
@@ -111,7 +110,7 @@ datetime_jesien <- c()
 
 for(i in i_jesien:n_jesien) {
   max10_jesien <- c(max10_jesien, data_jesien[[i]]$X249180230)
-  datetime_jesien <- c(datetime_jesien, as.character(data_jesien[[i]]$datetime_jesien))
+  datetime_jesien <- c(datetime_jesien, as.character(data_jesien[[i]]$datetime))
 }
 
 x_jesien <- c()
@@ -184,7 +183,7 @@ datetime_zima <- c()
 
 for(i in i_zima:n_zima) {
   max10_zima <- c(max10_zima, data_zima[[i]]$X249180230)
-  datetime_zima <- c(datetime_zima, as.character(data_zima[[i]]$datetime_zima))
+  datetime_zima <- c(datetime_zima, as.character(data_zima[[i]]$datetime))
 }
 
 x_zima <- c()
@@ -212,10 +211,10 @@ tau_zima <- fit_zima$tau
 
 print("X20 zima GAMLSS")
 x20_zima <- 1-(1/(20*92*24*6))
-result20_zima <- qSEP1(x20,mu_zima,sigma_zima,nu_zima,tau_zima); result20_zima
+result20_zima <- qSEP1(x20_zima,mu_zima,sigma_zima,nu_zima,tau_zima); result20_zima
 print("X50 zima GAMLSS")
 x50_zima <- 1-(1/(50*92*24*6))
-result50_zima <- qSEP1(x50,mu_zima,sigma_zima,nu_zima,tau_zima); result50_zima
+result50_zima <- qSEP1(x50_zima,mu_zima,sigma_zima,nu_zima,tau_zima); result50_zima
 
 ### 2 sposob
 #-=-=-=-=-=-=-=-=- metoda 2. Rozkład GEV -=-=-=-=-=-=-=-=-=-=-=
@@ -256,7 +255,7 @@ datetime_wiosna <- c()
 
 for(i in i_wiosna:n_wiosna) {
   max10_wiosna <- c(max10_wiosna, data_wiosna[[i]]$X249180230)
-  datetime_wiosna <- c(datetime_wiosna, as.character(data_wiosna[[i]]$datetime_wiosna))
+  datetime_wiosna <- c(datetime_wiosna, as.character(data_wiosna[[i]]$datetime_))
 }
 
 x_wiosna <- c()
@@ -284,10 +283,10 @@ tau_wiosna <- fit_wiosna$tau
 
 print("X20 wiosna GAMLSS")
 x20_wiosna <- 1-(1/(20*92*24*6))
-result20_wiosna <- qSEP1(x20,mu_wiosna,sigma_wiosna,nu_wiosna,tau_wiosna); result20_wiosna
+result20_wiosna <- qSEP1(x20_wiosna,mu_wiosna,sigma_wiosna,nu_wiosna,tau_wiosna); result20_wiosna
 print("X50 wiosna GAMLSS")
 x50_wiosna <- 1-(1/(50*92*24*6))
-result50_wiosna <- qSEP1(x50,mu_wiosna,sigma_wiosna,nu_wiosna,tau_wiosna); result50_wiosna
+result50_wiosna <- qSEP1(x50_wiosna,mu_wiosna,sigma_wiosna,nu_wiosna,tau_wiosna); result50_wiosna
 
 ### 2 sposob
 #-=-=-=-=-=-=-=-=- metoda 2. Rozkład GEV -=-=-=-=-=-=-=-=-=-=-=

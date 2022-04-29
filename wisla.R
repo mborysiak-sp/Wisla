@@ -58,7 +58,7 @@ fit <- fitDist(max10$max10, type="realline")
 t2 <- Sys.time()
 t2-t1
 save(max10, fit, file="Wisla.Rdata")
-}
+
 pdf("gestosc chyba.pdf")
 hist(max10$max10, prob=TRUE)
 dev.off()
