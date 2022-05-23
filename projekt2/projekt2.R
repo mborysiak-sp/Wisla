@@ -5,7 +5,7 @@ loadValues <- function() {
   path_to_files <- "data/temp.stations-all"
   coords <- read.csv("data/coord233_alt.csv")
 
-  L <- as.list(list.files(path = path_to_files, pattern = ".*8.csv"))
+  L <- as.list(list.files(path = path_to_files, pattern = ".*7.csv"))
   L <- paste0(path_to_files, "\\", L)
   data0 <- lapply(L, read.csv)
   n <- length(data0)
@@ -64,91 +64,6 @@ loadValues <- function() {
   load(file = "data/proj2/Selected_Temp_August.Rdata")
 }
 
-# draw_map <- function(stations, thresholds) {
-#   library(maps)
-#   stations$th <- thresholds
-#   stations_sorted <- stations[order(stations$th),]
-#   pdf("data/proj2/mapazlegenda.png")
-#   map('world', 'poland', fill = T, col = 'gray')
-#   rbPal <- colorRampPalette(c('blue', 'red'))
-#   stations_sorted$col <- rbPal(50)[as.numeric(cut(ths$th, breaks = 50))]
-#   for (station in stations_sorted) {
-#     lon <- station[[1]]$lon
-#     lat <- station[[1]]$lat
-#     points(lon, lat, pch = 19, col = station$col)
-#   }
-#   dev.off()
-#
-# }
-
-#
-# iterate_over_stations <- function() {
-#   load(file = "data/proj2/Selected_Temp_August.Rdata")
-#
-#   for (station in formatted)
-#   {
-#     data <- station[2]$max10[, 5]
-#     data <- data[!is.na(data)]
-#
-#     A <- c(seq(0.85, 0.97, by = 0.02), seq(0.971, 0.985, by = 0.001))
-#     th <- quantile(data, A)
-#
-#     k20 <- 20 * 31 * 24 * 6
-#     k50 <- 50 * 31 * 24 * 6
-#     th[1]
-#     fit <- gpdFit(data, threshold = th[1])
-#     rl20 <- gpdRl(fit, period = k20, method = "profile", plot = FALSE)$Estimate
-#     rl50 <- gpdRl(fit, period = k50, method = "profile", plot = FALSE)$Estimate
-#
-#     # x20pp1[[length(x20pp1) + 1]] <- rl20
-#     # x50pp1[[length(x50pp1) + 1]] <- rl50
-#     sprintf("Station %s", station[1]$station)
-#     sprintf("Fit %f", rl20)
-#     sprintf("Rlk %f", rl50)
-#   }
-# }
-#
-# calculate_hiphotesis_to_reject_count <- function(d) {
-#   alpha <- 0.05
-#   os <- (1:d) / d
-#   osl <- alpha * os
-# }
-#
-# calculate_q_value <- function(p_value, d) {
-#   #3. Oblicz q_value i skorygowane p_value z metody ForwardStop (p_FS).
-#   #------------------------------------------------------------------
-#   #q_value
-#   Yi <- -log(1 - p_value)
-#   ri <- rev(1:d)
-#   Zi0 <- Yi / ri
-#   Zi <- cumsum(Zi0)
-#   qi <- 1 - exp(-Zi)
-#   qi
-# }
-#
-# calculate_corrected_p_value <- function(p_value) {
-#   #3. Oblicz q_value i skorygowane p_value z metody ForwardStop (p_FS).
-#   #------------------------------------------------------------------
-#   #q_value
-#   z <- pSeqStop(p_value)
-#   p_FS <- z$ForwardStop
-#   p_FS
-# }
-#
-# calculate_GPD_parameters <- function(data, th) {
-#   #2. Dla nadwyzek dla progow ze zbioru th wyestymuj parametry rozkladu GPD
-#   #i wykonaj test AD - wykorzystaj funkcje ,,gpdAd'' z biblioteki 'eva'
-#   #------------------------------------------------------------------------
-#   p_value <- c()
-#
-#   for (i in 1:d) {
-#     datau <- data[data > th[i]]
-#     fit <- gpdAd(datau)
-#     p_value[i] <- fit$p.value
-#     print(i)
-#   }
-# }
-
 load(file = "data/proj2/Selected_Temp_August.Rdata")
 
 x20pp1 <- NULL
@@ -202,19 +117,19 @@ for (station in formatted)
   r <- tryCatch({
     rl20 <- gpdRl(fit, period = k20, method = "profile", plot = FALSE)$Estimate
   }, error = function(cond) {
-    return(NA)
+    rl20 <- NA
   })
   r <- tryCatch({
     rl50 <- gpdRl(fit, period = k50, method = "profile", plot = FALSE)$Estimate
   }, error = function(cond) {
-    return(NA)
+    rl50 <- NA
   })
 
   x20pp1[[length(x20pp1) + 1]] <- rl20
   x50pp1[[length(x50pp1) + 1]] <- rl50
 
   row <- data.frame(station[[1]]$station, u, rl20, rl50)
-  csv_fname <- "data/proj2/resultPOT.csv"
+  csv_fname <- "data/proj2/resultLipiecPOT.csv"
   write.table(row, file = csv_fname, sep = ",",
               append = TRUE, quote = FALSE,
               col.names = FALSE, row.names = FALSE)
@@ -236,13 +151,13 @@ library(maps)
 
 stations <- formatted
 
-for (i in 1:(min(length(stations), length(thresholds)))) {
-  stations[[i]][[3]] <- thresholds[[i]]
+for (i in 1:(min(length(stations), length(x50pp1)))) {
+  stations[[i]][[3]] <- x50pp1[[i]]
 }
 
-thresholds_sorted <- sort(unlist(thresholds), decreasing = FALSE)
+thresholds_sorted <- sort(unlist(x50pp1), decreasing = FALSE)
 stations_sorted <- stations[order(sapply(stations, "[[", 3))]
-png("Figures/proj2/mapa.png", width = 2048, height = 2048)
+png("Figures/proj2/mapa_x50.png", width = 2048, height = 2048)
 map('world', 'poland', fill = T, col = 'gray')
 rbPal <- colorRampPalette(c('blue', 'yellow', 'red'))
 step <- 7
@@ -258,7 +173,7 @@ for (station in stations_sorted) {
   # text(lon, lat, station[[3]])
 }
 dev.off()
-png("Figures/proj2/legenda.png", width = 2048, height = 2048)
+png("Figures/proj2/legenda_x50.png", width = 2048, height = 2048)
 color.bar(rbPal(step), thresholds_sorted[[1]], thresholds_sorted[[length(thresholds_sorted)]], nticks = step)
 dev.off()
 
@@ -283,7 +198,8 @@ for(ii in 1:length(formatted)){
     os10[count,] <- y
     count <- count + 1
   }
-  B <- 5
+  parGEVr <- matrix(NA, nrow = 10, ncol = 3)
+  B <- 350
   r <- tryCatch({
     test10 <- gevrSeqTests(os10, method="pbscore", bootnum=B)
 
