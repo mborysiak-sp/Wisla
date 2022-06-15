@@ -14,6 +14,7 @@ data0 <- lapply(L,read.csv)
 n <- length(data0)
 newData <- list()
 missing <- c()
+missing_wind <-c()
 min_temp <- 0
 max_temp <- 40
 data_max <- 6 * 24 * 31 * 11
@@ -34,12 +35,14 @@ for(i in 1:nrow(coords)){
     station_winds[station_winds < 0] = NA
     newData[[length(newData)+1]] <- list(station_temps, station_winds, coords[i,])
     missing <- c(missing, sum(is.na(station_temps)))
+    missing_wind <- c(missing_wind, sum(is.na(station_winds)))
   }
 }
 median_missing <- median(missing)
-
+median(missing_wind)
+mean_missing <- mean(missing_wind)
 for(i in 1:length(missing)){
-  if(missing[i] > median_missing){
+  if(missing[i] > median_missing || missing_wind[i] > mean_missing){
     newData <- newData[-i]
   }
 }
@@ -76,7 +79,7 @@ library(ggExtra)
 library(MASS)
 
 cop_stats <-c()
-
+it <- 1
 for(station in formatted){
   X1 <- station[[2]]$maxd_temp
   X2 <- station[[2]]$maxd_wind
@@ -86,6 +89,7 @@ for(station in formatted){
   colnames(V) <- c("V1","V2")
   cop.npar <- BiCopSelect(V[,1],V[,2], selectioncrit="AIC", se=TRUE)
   norm.cop <- BiCop(family = cop.npar$family, par = cop.npar$par, par2= cop.npar$par2)
+  station <- append(station, norm.cop$familyname)
   cop_stats <- c(cop_stats, norm.cop$familyname)
   N <- 30 * 11
   temp <- c()
@@ -93,7 +97,7 @@ for(station in formatted){
   for (i in 1 : 100) {
     V <- BiCopSim(N,norm.cop)
     Z.npar <- cbind(quantile(X$X1, V[,1], na.rm=TRUE), quantile(X$X2, V[,2]))
-    max_blocks <- c()
+    
     for(k in 1 : 11){
       block_temp <- c();block_wind <- c();
       from <- 1 + (k-1) * 30
@@ -104,11 +108,49 @@ for(station in formatted){
       wind <- c(wind, max(block_wind))
       
     }
-    
   }
+  #implementacja bmm z anal 2, need help!!!!!!!!!!!!!!!!!
+  # os10 <- matrix(NA,nrow=length(2008:2018),ncol=r)
+  # count <- 1
+  # for(i in 2008:2018){
+  #   datar <- temps[temps$year == i, 5]
+  #   datar <- datar[!is.na(datar)]
+  #   x <- sort(datar,decreasing = TRUE)
+  #   y <- x[1:r]
+  #   os10[count,] <- y
+  #   count <- count + 1
+  # }
+  # B <- 10
+  # r <- tryCatch({
+  #   test10 <- gevrSeqTests(os10, method="pbscore", bootnum=B)
+  #   
+  #   p_FS <- rev(test10$ForwardStop)
+  #   
+  #   length(Filter(function(x) x > 0.05, p_FS))
+  # }, error = function(cond) {
+  #   return(NA)
+  # })
+  # x20 <- NA
+  # x50 <- NA
+  # if(!is.na(r)){
+  #   if(r > 0){
+  #     osr <- os10[,1:r]
+  #     fit <- gevrFit(osr,method="mle")
+  #     
+  #     parGEVr[r,] <- fit$par.ests
+  #     ,
+  #     x20 <- gevrRl(fit,20)$Estimate
+  #     x50 <- gevrRl(fit,50)$Estimate
+  #   }
+  # }
+  # x20pp2[[length(x20pp2) + 1]] <- x20
+  # x50pp2[[length(x50pp2) + 1]] <- x50
   
   
+  #tu dodac BMM dla temp i wind
   
+  print(round(100 * it / length(formatted), 1))
+  it <- it + 1
   
 }
 occurence <- data.frame(table(unlist(cop_stats)))
