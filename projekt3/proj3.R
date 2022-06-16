@@ -72,12 +72,14 @@ for(i in 1: length(newData)){
   print(round(100 * i / length(newData), 1))
 }
 save(formatted, file="D:/IT/Nauka/R/DATA/Daily_Max_August.Rdata")
+load(file="D:/IT/Nauka/R/DATA/Daily_Max_August.Rdata")
 library(copula)
 library(VineCopula)
 library(ggplot2)
 library(ggExtra)
 library(MASS)
 
+output_data <- list() # komplet danych stacji i estymacji
 cop_stats <-c()
 it <- 1
 for(station in formatted){
@@ -88,7 +90,7 @@ for(station in formatted){
   V <- pobs(X)
   colnames(V) <- c("V1","V2")
   cop.npar <- BiCopSelect(V[,1],V[,2], selectioncrit="AIC", se=TRUE)
-  norm.cop <- BiCop(family = cop.npar$family, par = cop.npar$par, par2= cop.npar$par2)
+  norm.cop <- BiCop(family = cop.npar$family, par = cop.npar$par, par2=cop.npar$par2)
   station <- append(station, norm.cop$familyname)
   cop_stats <- c(cop_stats, norm.cop$familyname)
   N <- 30 * 11
@@ -108,481 +110,36 @@ for(station in formatted){
       wind <- c(wind, max(block_wind))
       
     }
+    
   }
-  #implementacja bmm z anal 2, need help!!!!!!!!!!!!!!!!!
-  # os10 <- matrix(NA,nrow=length(2008:2018),ncol=r)
-  # count <- 1
-  # for(i in 2008:2018){
-  #   datar <- temps[temps$year == i, 5]
-  #   datar <- datar[!is.na(datar)]
-  #   x <- sort(datar,decreasing = TRUE)
-  #   y <- x[1:r]
-  #   os10[count,] <- y
-  #   count <- count + 1
-  # }
-  # B <- 10
-  # r <- tryCatch({
-  #   test10 <- gevrSeqTests(os10, method="pbscore", bootnum=B)
-  #   
-  #   p_FS <- rev(test10$ForwardStop)
-  #   
-  #   length(Filter(function(x) x > 0.05, p_FS))
-  # }, error = function(cond) {
-  #   return(NA)
-  # })
-  # x20 <- NA
-  # x50 <- NA
-  # if(!is.na(r)){
-  #   if(r > 0){
-  #     osr <- os10[,1:r]
-  #     fit <- gevrFit(osr,method="mle")
-  #     
-  #     parGEVr[r,] <- fit$par.ests
-  #     ,
-  #     x20 <- gevrRl(fit,20)$Estimate
-  #     x50 <- gevrRl(fit,50)$Estimate
-  #   }
-  # }
-  # x20pp2[[length(x20pp2) + 1]] <- x20
-  # x50pp2[[length(x50pp2) + 1]] <- x50
+  tryCatch({
+    fit_temp <- evir::gev(temp)
+    ests_t <- fit_temp$par.ests
+    t_x20 <- evir::qgev(1-1/20, ests_t[[1]], ests_t[[3]], ests_t[[2]])
+    t_x50 <- evir::qgev(1-1/50, ests_t[[1]], ests_t[[3]], ests_t[[2]])
+  }, error = function(cond){
+    t_x20 <- NA
+    t_x50 <- NA
+  })
   
-  
-  #tu dodac BMM dla temp i wind
-  
+  tryCatch({
+    fit_wind <- evir::gev(wind)
+    ests_w <- fit_wind$par.ests
+    w_x20 <- evir::qgev(1-1/20, ests_w[[1]], ests_w[[3]], ests_w[[2]])
+    w_x50 <- evir::qgev(1-1/50, ests_w[[1]], ests_w[[3]], ests_w[[2]])
+  }, error = function(cond){
+    w_x20 <- NA
+    w_x50 <- NA
+  })
+
+  r_lvl <- data.frame(t_x20, t_x50, w_x20, w_x50)
+  station <- append(station, r_lvl)
+  output_data[[length(output_data) + 1]] <- station
   print(round(100 * it / length(formatted), 1))
   it <- it + 1
   
 }
+save(output_data, file="D:/IT/Nauka/R/DATA/Daily_Max_August_Output.Rdata")
 occurence <- data.frame(table(unlist(cop_stats)))
 colnames(occurence) <- c("Rodzaj kopuly", "liczba wystapien")
-#
-#
-#to dalej nie dotyczy projektu 
-#
-#
 
-
-
-
-
-
-
-
-
-
-
-
-
-X <- data.frame(X1,X2)
-X <- X[complete.cases(X),]
-#estymujemy parametry
-fit.exp=fitdistr(X$X1,"exponential")
-fit.norm=fitdistr(X$X2,"normal")
-
-#parametry wyestymowanych rozkladow i qq-ploty (wykresy diagnostyczne na dobroc dopasowania rozkladu)
-lambda=round(fit.exp$estimate,2)
-par=round(fit.norm$estimate,2)
-lambda; par
-
-alpha <- ppoints(100)
-X1_emp <- quantile(X1,alpha)
-X2_emp <- quantile(X2,alpha)
-X1_teo <- qexp(alpha,lambda)
-X2_teo <- qnorm(alpha,par[1],par[2])
-
-
-#--- B. podejscie nieparametryczne 
-#pseudo-obserwacje nieparametryczne(korzystamy z funkcji pobs w library(copula))
-V <- pobs(X)
-colnames(V) <- c("V1","V2")
-#===== w bibliotece VineCopula za pomoca funkcji 'BiCopSelect'
-#===== wybieramy najlepsza, z zaimplementowanych tam kopul (kryterium wyboru AIC)
-#library(VineCopula)
-cop.npar <- BiCopSelect(V[,1],V[,2], selectioncrit="AIC", se=TRUE)     #na podstawie obserwavji nieparametrycznych
-
-#===== wyniki na wykresach (gestosci, kontury, dane vs. wygenerowane) 
-#parametry kazdej z kopul potrzebne dalej do wykresow
-
-theta.npar <-  cop.npar$par
-
-#tworzymy obiekty 'copula' dla kazdej z kopul
-norm.cop <- BiCop(family = cop.npar$family, par = cop.npar$par, par2= cop.npar$par2)
-norm.cop
-
-#--- wykres konturowy (z rozkladami brzegowymi N(0,1))
-#Zobacz CC, Def.3.11, p.59
-
-contour(norm.cop)
-
-#Wygenerujmy, dla porownania, proby licznosci danych: N=1000, 
-#z obydwu kopul i wykorzystamy je do utworzenia prob z rozkladu F=C(F1,F2)
-N <- 1000
-
-#--- proby z kopul
-V <- BiCopSim(N,norm.cop)
-V2 <-BiCopSim(N, cop)
-u1=U[,1]; u2=U[,2]
-v1=V[,1]; v2=V[,2]
-
-#--- proby z rokladow F=C(F1,F2)
-X.npar <- cbind(quantile(X1,v1),quantile(X2,v2))            #podejscie nieparametryczne
-Z.npar <- cbind(quantile(X$X1, v1, na.rm=TRUE), quantile(X$X2, v2, na.rm=TRUE))
-par(mfrow=c(2,3))
-plot(X); plot(X.par); plot(X.npar)
-plot(U); plot(V)
-plot(Z.npar)
-#mozemy  wykorzystac funkcje 'BiCopCompare' do selekcji kopul
-#wedlug wartosci AIC, BIC czy LogLik
-#Mozemy obejrzec wygenerowane probki z kopul przy roznych rozkladach brzegowych
-#------------------------------------------------------------------------------
-BiCopCompare(U[,1], U[,2])
-BiCopCompare(V[,1], V[,2])
-
-#===========
-#Przyklad 3. Generowanie z kopul: Claytona, Franka, Gumbela (w bibliotece 'copula')
-#===========
-#proby z kopul Claytona 
-#---------------
-par(mfrow=c(3,3))
-
-theta <- c(seq(-1,0,by=0.2),seq(1,5,by=2))
-theta
-
-for(i in theta){
-  uC <- rCopula(copula=claytonCopula(i), n=1000)
-  plot(uC)
-  tau=round(i/(i+2),2)
-  text(0.3,0, i, col=2)
-  #text(0.4,0, tau, col=2)
-}
-
-#proby z kopul Gumbela
-#--------------------
-theta <- seq(1,5,by=0.5)
-
-par(mfrow=c(3,3))
-
-for(i in theta){
-  uC <- rCopula(copula=gumbelCopula(i), n=1000)
-  plot(uC)
-  text(0.8,0, i, col=2)
-}
-
-#proby z kopul Franka
-#--------------------
-theta <- seq(-16,16,by=4)
-
-par(mfrow=c(3,3))
-
-for(i in theta){
-  uC <- rCopula(copula=frankCopula(i), n=1000)
-  plot(uC)
-  text(0.8,0, i, col=2)
-}
-
-
-#proby z kopul Joe
-#--------------------
-theta <- seq(1,9,by=1)
-
-par(mfrow=c(3,3))
-
-for(t in theta){
-  
-  uC <- rCopula(1000,joeCopula(t))
-  plot(uC)
-  text(0.8,0, t, col=2)
-}
-
-
-#Przyklad 4 -- wspolczynniki:Pearsona, Kendalla i Spearmana
-#==========
-?cor
-#--- A wspolczynniki dla zestawu ,,dane''
-#Z <- pobierz plik dane.csv z PE (dane do Przykladu 5 w skrypcie kopuly01.R)
-#Z <- X z Przykladu 3
-Z <- X
-sapply(list("pearson", "kendall", "spearman"), function(x) cor(X,method=x)[1,2])
-
-#--- B wsp. Pearsona zalezy od rozkladow brzegowych
-#Wykorzystamy dane z Przykladu 1 - kopula gaussowska zlozona z roznymi rozkladami brzegowymi
-norm.cop <-  normalCopula(0.7)
-
-N= 1000
-
-set.seed=1010
-U <- rCopula(N,norm.cop)                           #rozklady brzegowe U(01)
-X <- cbind(qexp(U[,1]),qexp(U[,2]))                #exp(1)
-Y <- cbind(qnorm(U[,1],1,2),qexp(U[,2],1/4))       #N(0,1), Exp(1/4)
-
-df <- data.frame(U=U, X=X,Y=Y)
-head(df)
-
-#dane na wykresach
-p1 <- ggplot(df, aes(x=U.1, y=U.2))+  geom_point()
-p2 <- ggplot(df, aes(x=X.1, y=X.2))+  geom_point()
-p3 <- ggplot(df, aes(x=Y.1, y=Y.2))+  geom_point()
-p1.hist <- ggMarginal(p1, type="histogram")
-p2.hist <- ggMarginal(p2, type="histogram")
-p3.hist <- ggMarginal(p3, type="histogram")
-
-cowplot::plot_grid(p1.hist,p2.hist, p3.hist,ncol = 1,nrow = 3)
-
-df <- list(U=U, X=X,Y=Y)
-sapply(df,function(x) cor(x, method="pearson")[1,2])
-sapply(df,function(x) cor(x, method="kendall")[1,2])
-sapply(df,function(x) cor(x, method="spearman")[1,2])
-
-
-#Przyklad 5 (wiatry Ustka-Leba)
-#==========
-#LU <- pobierz dane z pliku ,,LebaUstka_2015_2018_winter.Rdata"
-#LU <- LU <- load(file="sciezka dostepu/LebaUstka_2015_2018_winter.Rdata")
-LU
-
-head(Leba); head(Ustka)
-tail(Leba); tail(Ustka)
-dim(Leba); dim(Ustka)
-
-wind <- data.frame(w_Leba=Leba$w_sp,w_Ustka=Ustka$w_sp)
-head(wind)
-dim(wind)
-
-X <- wind[complete.cases(wind),]  #wybieramy wiersze z pelnymi danymi
-dim(X)
-
-#===== dobor kopuly metoda  nieparametryczna 
-#pseudo-obserwacje nieparametryczne
-U <- pobs(X)
-colnames(U) <- c("u","v")
-Y <- qnorm(U)  #'normalna' normalizacja
-colnames(Y) <- c("y1","y2")
-
-#wykresy rozrzutu
-df <- data.frame(X,U,Y)
-head(df)
-
-p1 <- ggplot(df, aes(w_Leba,w_Ustka))+  geom_point()
-p2 <- ggplot(df, aes(u,v))+  geom_point()
-p3 <- ggplot(df, aes(y1,y2))+  geom_point()
-p1.hist <- ggMarginal(p1, type="histogram")
-p2.hist <- ggMarginal(p2, type="histogram")
-p3.hist <- ggMarginal(p3, type="histogram")
-
-cowplot::plot_grid(p1.hist,p2.hist,p3.hist,ncol = 1,nrow = 3)
-
-#--- dobor kopuly
-t1 <- Sys.time()
-cop.npar <- BiCopSelect(U[,1],U[,2])
-t2 <- Sys.time()
-t2-t1 #ok. 30s
-
-cop.npar
-cop.npar$family
-
-#--- inne kopuly - porownanie, sortujemy wzgledem AIC, BIC
-t1 <- Sys.time()
-comp.npar <- BiCopEstList(U[,1],U[,2])
-t2 <- Sys.time() 
-t2-t1 #30s
-
-comp.npar
-
-AIC3.npar <- head(comp.npar$summary[order(comp.npar$summary$AIC),],3) #204,2,1
-BIC3.npar <- head(comp.npar$summary[order(comp.npar$summary$BIC),],3) #204,1,2
-logLik3.npar <- head(comp.npar$summary[order(comp.npar$summary$logLik,decreasing = TRUE),],3)#204,2,1
-AIC3.npar; BIC3.npar; logLik3.npar
-
-#===== dobor kopuly metoda parametryczna 
-#tworzymy pseudo-obserwacje parametryczne
-
-#korzystajac z funkcji fitDist() z biblioteki 'gamlss' dobieramy 
-#najlepszy z rozkladow zaimplementowanych w gamlss.family
-library(gamlss)
-
-t1 <- Sys.time()
-Fits <- lapply(1:2,function(i) fitDist(X[,i]))
-t2 <- Sys.time()
-t2-t1 #ok. 2 min
-
-#gdyby z jakichs powodow estymacja wyzej nie poszla
-#wyniki sa na PE, w pliku LebaUstka_gamlss.Rdata
-#plik zawiera liste Fits z wynikami
-#fit <- load(file="sciezka dostepu/LebaUstka_gamlss.Rdata")
-#fit
-
-#rozklady posortowane wedlug wartosci AIC
-Fits[[1]]$fits  #Leba
-Fits[[2]]$fits   #Ustka
-
-#Przeksztalcamy AIC (exp((AICmin???AICi)/2)), aby zobaczyc na ile istotnie kolejne modele róznia sie od pierwszego
-#Zobacz: How to use AIC in practice, https://en.wikipedia.org/wiki/Akaike_information_criterion
-par(mfrow=c(2,1))
-for(i in 1:2){
-  plot(exp((Fits[[i]]$fits[[1]]- Fits[[i]]$fits)/2))
-}
-
-#dopasowane rozklady
-lapply(1:2,function(i) Fits[[i]]$fits)
-sapply(1:2,function(i) Fits[[i]]$family)
-sapply(1:2,function(i) Fits[[i]]$family[[1]])
-
-
-#histogramy i QQ-ploty
-par(mfrow=c(2,2))
-hist(X$w_Leba,prob=TRUE)
-curve(dSEP4(x, mu=Fits[[1]]$mu,
-            sigma= Fits[[1]]$sigma,
-            nu = Fits[[1]]$nu,
-            tau = Fits[[1]]$tau),col=2,add=TRUE)
-hist(X$w_Ustka,prob=TRUE)
-curve(dRG(x,mu=Fits[[2]]$mu,sigma= Fits[[2]]$sigma),col=2,add=TRUE)
-
-alpha <- ppoints(100)
-X1emp <- quantile(X$w_Leba,alpha)
-X1teo <- qSEP4(alpha, mu=Fits[[1]]$mu,
-               sigma= Fits[[1]]$sigma,
-               nu = Fits[[1]]$nu,
-               tau = Fits[[1]]$tau)
-X2emp <- quantile(X$w_Ustka,alpha)
-X2teo <- qRG(alpha, mu=Fits[[2]]$mu,
-             sigma= Fits[[2]]$sigma)
-
-
-plot(X1emp,X1teo)
-abline(a=0,b=1,col=2)
-plot(X2emp,X2teo)
-abline(a=0,b=1,col=2)
-
-
-#==== pseudo-obserwacje parametryczne
-V <- cbind(pSEP4(X[,1], mu=Fits[[1]]$mu,
-                 sigma= Fits[[1]]$sigma,
-                 nu = Fits[[1]]$nu,
-                 tau = Fits[[1]]$tau),
-           pRG(X[,2], mu=Fits[[2]]$mu,
-               sigma= Fits[[2]]$sigma))
-
-colnames(V) <- c("v1","v2")
-Y <- qnorm(V)
-colnames(Y) <- c("y1","y2")
-
-#wykresy rozrzutu
-df <- data.frame(X,V,Y)
-head(df)
-
-#p1 <- ggplot(df, aes(w_Leba,w_Ustka))+  geom_point()
-p4 <- ggplot(df, aes(v1,v2))+  geom_point()
-p5 <- ggplot(df, aes(y1,y2))+  geom_point()
-p4.hist <- ggMarginal(p4, type="histogram")
-p5.hist <- ggMarginal(p5, type="histogram")
-
-cowplot::plot_grid(p1.hist,p4.hist,p5.hist,ncol = 1,nrow = 3)
-
-#--- dobor kopuly
-t1 <- Sys.time()
-cop.par <- BiCopSelect(V[,1],V[,2])
-t2 <- Sys.time()
-t2-t1 #ok. 40s
-
-cop.par
-cop.par$family
-
-#--- inne kopuly - porownanie, sortujemy wzgledem AIC, BIC
-t1 <- Sys.time()
-comp.par <- BiCopEstList(V[,1],V[,2])
-t2 <- Sys.time() 
-t2-t1 #30s
-
-comp.par
-
-#Pierwsze trzy ,,najlepsze kopuly'' 
-AIC3.par <- head(comp.par$summary[order(comp.par$summary$AIC),],3) #204,2,1
-BIC3.par <- head(comp.par$summary[order(comp.par$summary$BIC),],3) #204,1,2
-logLik3.par <- head(comp.par$summary[order(comp.par$summary$logLik,decreasing = TRUE),],3) #204,2,1
-AIC3.par; BIC3.par; logLik3.par
-
-#----
-cowplot::plot_grid(p1.hist,p2.hist,p4.hist,ncol = 3,nrow = 1)
-
-#Przyklad 6 (Diagnostyka)
-#=========
-#1. porownanie gestosci empirycznej i teoretycznej kopuly
-p6 <- BiCopKDE(U[,1],U[,2],type = "surface")
-p7 <- plot(cop.npar)
-p8 <- plot(cop.par)
-
-cowplot::plot_grid(p6,p7,p8,ncol = 1,nrow = 3)
-
-#2. --- porownanie konturu 'empirycznego' i teoretycznego (kopuly)
-par(mfrow=c(4,1))
-BiCopKDE(U[,1],U[,2],type = "contour")
-BiCopKDE(V[,1],V[,2],type = "contour")
-contour(cop.npar)
-contour(cop.par)
-
-#kontur 'empiryczny' inaczej
-UU <- as.copuladata(U)
-VV <- as.copuladata(V)
-pairs(UU)
-pairs(VV)
-
-#3. --- proby wygenerowane z kopul
-N <- dim(X)[1]; N
-
-sem.npar <- BiCopSim(N,cop.npar)
-sem.par <-BiCopSim(N,cop.par)
-
-sem <- data.frame(sem.npar=sem.npar,sem.par=sem.par)
-
-p9 <- ggplot(sem, aes(sem.npar.1,sem.npar.2))+  geom_point()
-p10 <- ggplot(sem, aes(sem.par.1,sem.par.2))+  geom_point()
-p9.hist <- ggMarginal(p9, type="histogram")
-p10.hist <- ggMarginal(p10, type="histogram")
-
-cowplot::plot_grid(p9.hist,p10.hist,ncol = 1,nrow = 2)
-
-#4. -- proby z rozkladow F=C(F1,F2)
-u1 <- sem.npar[,1];  u2 <- sem.npar[,2]
-v1 <- sem.par[,1];  v2 <- sem.par[,2]
-
-x1.npar <- quantile(X$w_Leba,u1)
-x2.npar <- quantile(X$w_Ustka,u2)
-x1.par <- qSEP4(v1, mu=Fits[[1]]$mu,
-                sigma= Fits[[1]]$sigma,
-                nu = Fits[[1]]$nu,
-                tau = Fits[[1]]$tau)
-x2.par <- qRG(v2,mu=Fits[[2]]$mu,
-              sigma= Fits[[2]]$sigma)
-
-sem.F <- data.frame(x1.npar=x1.npar,x2.npar =x2.npar,
-                    x1.par=x1.par,x2.par =x2.par)
-head(sem.F)
-
-p11 <- ggplot(sem.F, aes(x1.npar,x2.npar))+  geom_point()
-p12 <- ggplot(sem.F, aes(x1.par,x2.par))+  geom_point()
-p11.hist <- ggMarginal(p11, type="histogram")
-p12.hist <- ggMarginal(p12, type="histogram")
-
-cowplot::plot_grid(p11.hist,p12.hist,ncol = 1,nrow = 2)
-
-#5. --- porownanie wspolczynnikow ekstremalnych empirycznych  i teoretycznych 
-#estymacja dolnego i gornego wspolczynnika
-p <- 0.01 # cut-off
-
-(lam.C <- c(lower = fitLambda(U, p = p)[2,1],
-            upper = fitLambda(U, p = p, lower.tail = FALSE)[2,1])) 
-
-(lam.C <- c(lower = fitLambda(V, p = p)[2,1],
-            upper = fitLambda(V, p = p, lower.tail = FALSE)[2,1])) 
-
-#wspolczynniki dla wyestymowanej kopuly
-BiCopPar2TailDep(cop.npar)
-BiCopPar2TailDep(cop.par)
-
-#6.--- wspolczynniki zaleznosci ekstremalnych dla pierwszych
-#trzech kopul wybranych przez AIC 
-nAIC3.npar <- as.numeric(rownames(AIC3.npar))
-lu.coeff.AIC3 <- t(sapply(nAIC3.npar,function(i) BiCopPar2TailDep(comp.npar$models[[i]])))
-rownames(lu.coeff.AIC3) <- BiCopName(AIC3.npar[,1])
-lu.coeff.AIC3
