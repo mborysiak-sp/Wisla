@@ -91,8 +91,12 @@ for(station in formatted){
   colnames(V) <- c("V1","V2")
   cop.npar <- BiCopSelect(V[,1],V[,2], selectioncrit="AIC", se=TRUE)
   norm.cop <- BiCop(family = cop.npar$family, par = cop.npar$par, par2=cop.npar$par2)
-  station <- append(station, norm.cop$familyname)
+  cop_type <- norm.cop$familyname
+  
   cop_stats <- c(cop_stats, norm.cop$familyname)
+  cor_kendall <- cor(X, method="kendall")[1,2]
+
+  
   N <- 30 * 11
   temp <- c()
   wind <- c()
@@ -131,9 +135,8 @@ for(station in formatted){
     w_x20 <- NA
     w_x50 <- NA
   })
-
-  r_lvl <- data.frame(t_x20, t_x50, w_x20, w_x50)
-  station <- append(station, r_lvl)
+  out_results <- data.frame(cop_type, cor_kendall, t_x20, t_x50, w_x20, w_x50)
+  station <- append(station, out_results)
   output_data[[length(output_data) + 1]] <- station
   print(round(100 * it / length(formatted), 1))
   it <- it + 1
